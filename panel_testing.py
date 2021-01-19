@@ -6,10 +6,10 @@ from numpy import pi
 
 ### Set up givens
 
-a = Airfoil("naca4412")
+a = Airfoil("naca4412").repanel(n_points_per_side=100)
 x = a.x()
 y = a.y()
-alpha_deg = 0
+alpha_deg = 5
 
 N = len(a.coordinates)  # number of airfoil nodes
 N_w = 50  # number of wake nodes
@@ -90,7 +90,7 @@ for i in range(N - 1):
         if i != j:
             second_term = (
                                   zp_field[i, j] / (2 * pi) / xp_panel[j]
-                          ) * (xp_panel[j] / zp_field[i, j] + (theta[i, j + 1] - theta[i, j]))
+                          ) * (xp_panel[j] / zp_field[i, j] + (theta[i, j + 1] - theta[i, j]) % (2 * pi))
         else:
             second_term = 1 / (2 * pi)
 
@@ -103,13 +103,13 @@ A[-1, -1] = 1
 
 ### Form the RHS
 alpha_rad = pi / 180 * alpha_deg
-U = np.array([
+Q = np.array([
     cas.cos(alpha_rad),
     cas.sin(alpha_rad)
 ])  # Freestream velocity direction
-RHS = np.einsum(
+RHS = -np.einsum(
     "j,ij->i",
-    U,
+    Q,
     zp_hat,
 )
 # Complete the Kutta condition
@@ -118,83 +118,15 @@ RHS[-1] = 0
 ### Solve the linear system
 gamma = np.linalg.solve(A, RHS)
 
-# Calculate local induced velocities
-# for i in range(N):  # For the i-th field point
-#     for j in range(N - 1):  # For the j-th panel
-#         u_p = 0
-#         u_p += zp_field[i, j] / (2 * pi) * (
-#                 dgamma[j] / dxp_panel[j]
-#         ) * np.log(r[i, j + 1] / r[i, j])
-#         u_p += (
-#                 gamma[j] * dxp_field[i, j] + dgamma * (zp_field)
-#         )
+### Perturbation velocity calculation
+Q_t = 1 + (gamma[1:] + gamma[:-1]) / 4
+C_p = 1 - Q_t ** 2
 
-### Drela notation
-# x_field = np.expand_dims(x, 1)
-# y_field = np.expand_dims(y, 1)
-# x_panel = x
-# y_panel = y
-#
-# r_vector = np.dstack(( # i-th field point, j-th panel point, k index is [x, y].
-#     x_field - x_panel,
-#     y_field - y_panel
-# ))
-#
-# dx_panel = np.roll(x_panel, -1) - x_panel
-# dy_panel = np.roll(y_panel, -1) - y_panel
-# panel_vector = np.vstack((dx_panel, dy_panel)).T # The [x, y] vector from the i-th panel point to the next.
-# panel_unit_vector = panel_vector / np.expand_dims(np.linalg.norm(panel_vector, axis=1), 1)
-# panel_unit_vector_normal = np.vstack(( # The panel_vector, rotated clockwise 90 degrees.
-#     panel_unit_vector[:,1],
-#     -panel_unit_vector[:,0]
-# )).T
-#
-# x_bar_1 = np.einsum(
-#     'ijk,jk->ij',
-#     r_vector, panel_unit_vector
-# )
-# y_bar_1 = np.einsum(
-#     'ijk,jk->ij',
-#     r_vector, panel_unit_vector_normal
-# )
-# r_1 = (
-#               x_bar_1 ** 2 +
-#               y_bar_1 ** 2
-#       ) ** 0.5
-#
-# theta_1 = np.arctan2(
-#     x_field - x_panel,
-#     y_field - y_panel,
-# )
+### Plot C_p
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-
-# ### Initialize an optimization environment
-# opti = Opti()
-#
-# ### Define unknowns
-# gamma = opti.variable(n_vars=N, init_guess=0)
-# sigma = 0  # opti.variable(n_vars=n_points, init_guess=0)
-#
-#
-# ### Compute streamfunction
-# def psi(x, y):
-#     def psi_gamma_plus(j):
-#         return (
-#                 x_bar_1 * cas.log(r_1) -
-#                 x_bar_2 * cas.log(r_2) +
-#                 x_bar_2 - x_bar_1 +
-#                 y_bar * (theta_1 - theta_2)
-#         )
-#
-#     def psi_gamma_minus(j):
-#         return (
-#                 (x_bar_1 + x_bar_2) * psi_gamma_plus(j)
-#         )
-#
-#     # vortex_integral =
-#
-#     psi_val = (
-#             u * y + v * x
-#             + 1 / (4 * pi) * (vortex_integral + source_integral)
-#     )
-#     return psi_val
+sns.set(palette=sns.color_palette("husl"))
+fig, ax = plt.subplots(1, 1, figsize=(6.4, 4.8), dpi=200)
+plt.plot(x_field, C_p)
+plt.show()
