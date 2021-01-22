@@ -138,7 +138,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     u_term_2 = u_term_2_quantity * d_theta
     u = u_term_1 + u_term_2
 
-    ### TEST
+    ### Correct the u-velocity if field point is on the panel
     if backend == "numpy":
         u[is_on_panel] = 0
     elif backend == "casadi":
