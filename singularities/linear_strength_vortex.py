@@ -39,7 +39,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
             (x_{j+1} - x_j) / z - (theta_{j+1} - theta_j)
 
     """
-    ### Modify any incoming floats # TODO remove
+    ### Modify any incoming floats
     if isinstance(xp_field, (float, int)):
         xp_field = np.array([xp_field])
     if isinstance(yp_field, (float, int)):
