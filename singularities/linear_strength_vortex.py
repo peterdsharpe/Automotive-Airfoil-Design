@@ -159,7 +159,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
         )
         v_term_2[is_on_panel] = d_gamma / tau
     elif backend == "casadi":
-        yp_field = cas.if_else(
+        yp_field_regularized = cas.if_else(
             is_on_panel,
             1,
             yp_field
@@ -168,7 +168,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
             is_on_panel,
             d_gamma / tau,
             u_term_1_quantity * (
-                    xp_panel_end / yp_field -
+                    xp_panel_end / yp_field_regularized -
                     d_theta
             ),
         )
