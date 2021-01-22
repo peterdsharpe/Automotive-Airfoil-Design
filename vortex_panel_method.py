@@ -150,18 +150,6 @@ plt.title(r"Inviscid Flow Field")
 plt.tight_layout()
 plt.show()
 
-
-### Plotly
-# import plotly.figure_factory as ff
-# fig = ff.create_streamline(
-#     x,
-#     y,
-#     U.reshape(len(y), len(x)),
-#     V.reshape(len(y), len(x)),
-#     # color=speed.reshape(len(y), len(x))
-# )
-# fig.show()
-
 ### Plot C_p
 surface_speeds = (gamma[1:] + gamma[:-1]) / 2
 C_p = 1 - surface_speeds ** 2
@@ -174,4 +162,3 @@ plt.ylabel(r"$C_p$")
 plt.title(r"$C_p$ on Surface")
 plt.tight_layout()
 plt.show()
-
