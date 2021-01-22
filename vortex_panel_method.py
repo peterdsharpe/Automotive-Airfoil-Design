@@ -11,7 +11,7 @@ sns.set(palette=sns.color_palette("husl"))
 
 ### Set up givens
 
-a = Airfoil("dae11").repanel(n_points_per_side=50)
+a = Airfoil("naca4408").repanel(n_points_per_side=50)
 x_panel = a.x()
 y_panel = a.y()
 alpha_deg = 5
@@ -57,7 +57,7 @@ def calculate_velocity(
     return u_field, v_field
 
 
-u_field, v_field = calculate_velocity(
+u_midpoints, v_midpoints = calculate_velocity(
     x_field=x_midpoints,
     y_field=y_midpoints,
     gamma=gamma,
@@ -75,7 +75,7 @@ xp_hat_y = panel_dy / panel_length  # y-coordinate of the yp_hat vector
 yp_hat_x = -xp_hat_y
 yp_hat_y = xp_hat_x
 
-normal_velocities = u_field * yp_hat_x + v_field * yp_hat_y
+normal_velocities = u_midpoints * yp_hat_x + v_midpoints * yp_hat_y
 
 ### Add in flow tangency constraint
 opti.subject_to(normal_velocities == 0)
@@ -86,8 +86,8 @@ opti.subject_to(gamma[0] + gamma[-1] == 0)
 ### Solve
 sol = opti.solve()
 gamma = sol.value(gamma)
-u_field = sol.value(u_field)
-v_field = sol.value(v_field)
+u_midpoints = sol.value(u_midpoints)
+v_midpoints = sol.value(v_midpoints)
 
 ### Calculate lift coefficient
 total_vorticity = np.sum(
@@ -98,11 +98,11 @@ Cl = 2 * total_vorticity
 print(f"Cl: {Cl}")
 
 ### Plot flowfield
-fig, ax = plt.subplots(1, 1, figsize=(9, 4), dpi=200)
+fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=200)
 
 margin = 0.4
-res = 30
-x = np.linspace(-margin, 1 + margin, res)  # round(res * (1 + 2 * margin) / (2 * margin)))
+res = 100
+x = np.linspace(-margin, 1 + margin, round(res * (1 + 2 * margin) / (2 * margin)))
 y = np.linspace(-margin, margin, res)
 X, Y = np.meshgrid(
     x,
@@ -128,14 +128,28 @@ plt.streamplot(
     U.reshape(len(y), len(x)),
     V.reshape(len(y), len(x)),
     color=speed.reshape(len(y), len(x)),
-    density=1,
+    density=2,
+    arrowsize=0,
+    cmap="Spectral",
 )
 
 plt.fill(x_panel, y_panel, "k", linewidth=0, zorder=4)
-
-plt.axis("equal")
-
+CB = plt.colorbar(
+    orientation="horizontal",
+    shrink=0.8,
+    aspect=40,
+)
+CB.set_label(r"$U/U_\infty$")
+plt.xlim(min(x), max(x))
+plt.ylim(min(y), max(y))
+plt.clim(0.7, 1.3)
+plt.gca().set_aspect('equal', adjustable='box')
+plt.xlabel(r"$x/c$")
+plt.ylabel(r"$y/c$")
+plt.title(r"Inviscid Flow Field")
+plt.tight_layout()
 plt.show()
+
 
 ### Plotly
 # import plotly.figure_factory as ff
@@ -149,18 +163,15 @@ plt.show()
 # fig.show()
 
 ### Plot C_p
-u_field, v_field = calculate_velocity(
-    x_field=x_midpoints,
-    y_field=y_midpoints,
-    gamma=gamma,
-)
-
-Q = (
-            u_field ** 2 +
-            v_field ** 2
-    ) ** 0.5
-C_p = 1 - Q ** 2
+surface_speeds = (gamma[1:] + gamma[:-1]) / 2
+C_p = 1 - surface_speeds ** 2
 
 fig, ax = plt.subplots(1, 1, figsize=(6.4, 4.8), dpi=200)
 plt.plot(x_midpoints, C_p)
+plt.gca().invert_yaxis()
+plt.xlabel(r"$x/c$")
+plt.ylabel(r"$C_p$")
+plt.title(r"$C_p$ on Surface")
+plt.tight_layout()
 plt.show()
+
