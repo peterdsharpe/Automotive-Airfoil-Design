@@ -1,5 +1,8 @@
 from numpy import pi
 import numpy as np
+from aerosandbox import cas
+
+
 
 
 def calculate_induced_velocity_panel_coordinates(
@@ -8,6 +11,7 @@ def calculate_induced_velocity_panel_coordinates(
         gamma_start=1.,
         gamma_end=1.,
         xp_panel_end=1.,
+        backend="numpy",
 ):
     """
     Calculates the induced velocity at a point (xp_field, yp_field) in a 2D potential-flow flowfield.
@@ -32,6 +36,16 @@ def calculate_induced_velocity_panel_coordinates(
     Equations 11.99 and 11.100.
 
     """
+    ### Define functions
+    if backend == "numpy":
+        arctan2 = lambda y, x: np.arctan2(y, x)
+        ln = lambda x: np.log(x)
+    elif backend == "casadi":
+        arctan2 = lambda y, x: cas.arctan2(y, x)
+        ln = lambda x: cas.log(x)
+    else:
+        raise ValueError("Bad value of 'backend'!")
+
     ### Do some geometry calculation
     r_1 = (
                   xp_field ** 2 +
@@ -41,8 +55,8 @@ def calculate_induced_velocity_panel_coordinates(
                   (xp_field - xp_panel_end) ** 2 +
                   yp_field ** 2
           ) ** 0.5
-    theta_1 = np.arctan2(yp_field, xp_field)
-    theta_2 = np.arctan2(yp_field, xp_field - xp_panel_end)
+    theta_1 = arctan2(yp_field, xp_field)
+    theta_2 = arctan2(yp_field, xp_field - xp_panel_end)
 
     ##### Naive implementation in the following comment block, shown here for interpretability:
     """
@@ -86,7 +100,7 @@ def calculate_induced_velocity_panel_coordinates(
     """
 
     ##### Optimized equivalent implementation, for speed:
-    log_r_2_r_1 = np.log(r_2 / r_1)
+    ln_r_2_r_1 = ln(r_2 / r_1)
     d_theta = theta_2 - theta_1
     d_gamma = gamma_end - gamma_start
     tau = 2 * pi
@@ -102,20 +116,31 @@ def calculate_induced_velocity_panel_coordinates(
                         )
 
     ### Calculate u
-    u_term_1 = u_term_1_quantity * log_r_2_r_1
+    u_term_1 = u_term_1_quantity * ln_r_2_r_1
     u_term_2 = u_term_2_quantity * d_theta
     u = u_term_1 + u_term_2
 
     ### Calculate v
-    v_term_1 = u_term_2_quantity * log_r_2_r_1
+    v_term_1 = u_term_2_quantity * ln_r_2_r_1
 
     yp_field_is_nonzero = yp_field != 0
-    v_term_2 = np.empty_like(v_term_1)
-    v_term_2[yp_field_is_nonzero] = u_term_1_quantity[yp_field_is_nonzero] * (
-            xp_panel_end / yp_field[yp_field_is_nonzero] +
-            d_theta[yp_field_is_nonzero]
-    )
-    v_term_2[~yp_field_is_nonzero] = d_gamma / tau
+    if backend == "numpy":
+        v_term_2 = np.empty_like(v_term_1)
+        v_term_2[yp_field_is_nonzero] = u_term_1_quantity[yp_field_is_nonzero] * (
+                xp_panel_end / yp_field[yp_field_is_nonzero] +
+                d_theta[yp_field_is_nonzero]
+        )
+        v_term_2[~yp_field_is_nonzero] = d_gamma / tau
+    elif backend == "casadi":
+        yp_field[~yp_field_is_nonzero] = 1
+        v_term_2 = cas.if_else(
+            yp_field_is_nonzero,
+            u_term_1_quantity * (
+                    xp_panel_end / yp_field +
+                    d_theta
+            ),
+            d_gamma / tau
+        )
 
     v = v_term_1 + v_term_2
 
@@ -132,6 +157,7 @@ def calculate_induced_velocity(
         y_panel_end,
         gamma_start=1.,
         gamma_end=1.,
+        backend="numpy"
 ):
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
@@ -174,7 +200,8 @@ def calculate_induced_velocity(
         yp_field=yp_field,
         gamma_start=gamma_start,
         gamma_end=gamma_end,
-        xp_panel_end=panel_length
+        xp_panel_end=panel_length,
+        backend=backend
     )
 
     ### Transform the velocities in panel coordinates back to global coordinates
