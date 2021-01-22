@@ -1,16 +1,17 @@
 from numpy import pi
 import numpy as np
 from aerosandbox import cas
+from typing import Union
 
 
 def calculate_induced_velocity_single_panel_panel_coordinates(
-        xp_field,
-        yp_field,
-        gamma_start=1.,
-        gamma_end=1.,
-        xp_panel_end=1.,
-        backend="numpy",
-):
+        xp_field: Union[float, np.ndarray],
+        yp_field: Union[float, np.ndarray],
+        gamma_start: float = 1.,
+        gamma_end: float = 1.,
+        xp_panel_end: float = 1.,
+        backend: str = "numpy",
+) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
     """
     Calculates the induced velocity at a point (xp_field, yp_field) in a 2D potential-flow flowfield.
 
@@ -45,7 +46,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     if isinstance(yp_field, (float, int)):
         yp_field = np.array([yp_field])
 
-    ### Define functions according to the backend to be used
+    ### Define functions according to the backend to be used, and validate backend argument
     if backend == "numpy":
         arctan2 = lambda y, x: np.arctan2(y, x)
         ln = lambda x: np.log(x)
@@ -176,16 +177,16 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
 
 
 def calculate_induced_velocity_single_panel(
-        x_field,
-        y_field,
-        x_panel_start,
-        y_panel_start,
-        x_panel_end,
-        y_panel_end,
-        gamma_start=1.,
-        gamma_end=1.,
-        backend="numpy"
-):
+        x_field: Union[float, np.ndarray],
+        y_field: Union[float, np.ndarray],
+        x_panel_start: float,
+        y_panel_start: float,
+        x_panel_end: float,
+        y_panel_end: float,
+        gamma_start: float = 1.,
+        gamma_end: float = 1.,
+        backend: str = "numpy"
+) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
@@ -240,13 +241,30 @@ def calculate_induced_velocity_single_panel(
 
 
 def calculate_induced_velocity(
-        x_field,
-        y_field,
-        x_panel,
-        y_panel,
-        gamma,
-        backend="numpy",
-):
+        x_field: Union[float, np.ndarray],
+        y_field: Union[float, np.ndarray],
+        x_panel: np.ndarray,
+        y_panel: np.ndarray,
+        gamma: np.ndarray,
+        backend: str = "numpy",
+) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
+    """
+    Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
+
+    In this flowfield, the following singularity elements are assumed:
+    A line vortex going from (x_panel_start, y_panel_start) to (x_panel_end, y_panel_end).
+    The strength of this vortex varies linearly from:
+        * gamma_start at (x_panel_start, y_panel_start), to:
+        * gamma_end at (x_panel_end, y_panel_end).
+
+    By convention here, positive gamma induces clockwise swirl in the flow field.
+
+    Function returns the 2D velocity u, v in the global coordinate system (x, y).
+
+    Inputs x and y can be 1D ndarrays representing various field points,
+    in which case u and v have the corresponding dimensionality.
+
+    """
     try:
         N = len(x_panel)
     except TypeError:
