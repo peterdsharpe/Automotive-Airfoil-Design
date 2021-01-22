@@ -29,7 +29,10 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     Function returns the 2D velocity u, v in the local coordinate system of the panel.
 
     Inputs x and y can be 1D ndarrays representing various field points,
-    in which case u and v have corresponding dimensionality.
+    in which case the resulting velocities u and v have corresponding dimensionality.
+
+    The `backend` parameter selects a numerical backend to be used, with the options "numpy" and "casadi".
+    NumPy is significantly faster, but CasADi is differentiable.
 
     Equations from the seminal textbook "Low Speed Aerodynamics" by Katz and Plotkin.
     Equations 11.99 and 11.100.
@@ -201,7 +204,10 @@ def calculate_induced_velocity_single_panel(
     Function returns the 2D velocity u, v in the global coordinate system (x, y).
 
     Inputs x and y can be 1D ndarrays representing various field points,
-    in which case u and v have the corresponding dimensionality.
+    in which case the resulting velocities u and v have the corresponding dimensionality.
+
+    The `backend` parameter selects a numerical backend to be used, with the options "numpy" and "casadi".
+    NumPy is significantly faster, but CasADi is differentiable.
 
     """
     ### Calculate the panel coordinate transform (x -> xp, y -> yp), where
@@ -252,17 +258,20 @@ def calculate_induced_velocity(
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
     In this flowfield, the following singularity elements are assumed:
-    A line vortex going from (x_panel_start, y_panel_start) to (x_panel_end, y_panel_end).
-    The strength of this vortex varies linearly from:
-        * gamma_start at (x_panel_start, y_panel_start), to:
-        * gamma_end at (x_panel_end, y_panel_end).
+        A line vortex that passes through the coordinates specified in (x_panel, y_panel). Each of these vertices is
+        called a "node".
+        The vorticity of this line vortex per unit length varies linearly between subsequent nodes.
+        The vorticity at each node is specified by the parameter gamma.
 
     By convention here, positive gamma induces clockwise swirl in the flow field.
 
     Function returns the 2D velocity u, v in the global coordinate system (x, y).
 
     Inputs x and y can be 1D ndarrays representing various field points,
-    in which case u and v have the corresponding dimensionality.
+    in which case the resulting velocities u and v have the corresponding dimensionality.
+
+    The `backend` parameter selects a numerical backend to be used, with the options "numpy" and "casadi".
+    NumPy is significantly faster, but CasADi is differentiable.
 
     """
     try:
