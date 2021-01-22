@@ -3,9 +3,7 @@ import numpy as np
 from aerosandbox import cas
 
 
-
-
-def calculate_induced_velocity_panel_coordinates(
+def calculate_induced_velocity_single_panel_panel_coordinates(
         xp_field,
         yp_field,
         gamma_start=1.,
@@ -34,15 +32,22 @@ def calculate_induced_velocity_panel_coordinates(
 
     Equations from the seminal textbook "Low Speed Aerodynamics" by Katz and Plotkin.
     Equations 11.99 and 11.100.
+        * Note: there is an error in equation 11.100 in Katz and Plotkin, at least in the 2nd ed:
+        The last term of equation 11.100, which is given as:
+            (x_{j+1} - x_j) / z + (theta_{j+1} - theta_j)
+        has a sign error and should instead be written as:
+            (x_{j+1} - x_j) / z - (theta_{j+1} - theta_j)
 
     """
-    ### Define functions
+    ### Define functions according to the backend to be used
     if backend == "numpy":
         arctan2 = lambda y, x: np.arctan2(y, x)
         ln = lambda x: np.log(x)
+        mod = lambda x, y: np.mod(x, y)
     elif backend == "casadi":
         arctan2 = lambda y, x: cas.arctan2(y, x)
         ln = lambda x: cas.log(x)
+        mod = lambda x, y: cas.mod(x, y)
     else:
         raise ValueError("Bad value of 'backend'!")
 
@@ -124,19 +129,32 @@ def calculate_induced_velocity_panel_coordinates(
     v_term_1 = u_term_2_quantity * ln_r_2_r_1
 
     yp_field_is_nonzero = yp_field != 0
-    if backend == "numpy":
-        v_term_2 = np.empty_like(v_term_1)
-        v_term_2[yp_field_is_nonzero] = u_term_1_quantity[yp_field_is_nonzero] * (
-                xp_panel_end / yp_field[yp_field_is_nonzero] +
-                d_theta[yp_field_is_nonzero]
-        )
-        v_term_2[~yp_field_is_nonzero] = d_gamma / tau
+    if backend == "numpy":  # This is basically an optimized version of np.where
+        # v_term_2 = np.empty_like(v_term_1)
+        # v_term_2[yp_field_is_nonzero] = u_term_1_quantity[yp_field_is_nonzero] * (
+        #         xp_panel_end / yp_field[yp_field_is_nonzero] +
+        #         d_theta[yp_field_is_nonzero]
+        # )
+        # v_term_2[~yp_field_is_nonzero] = d_gamma / tau
+        with np.errstate(divide='ignore', invalid='ignore'):
+            v_term_2 = np.where(
+                yp_field_is_nonzero,
+                u_term_1_quantity * (
+                        xp_panel_end / yp_field -
+                        d_theta
+                ),
+                d_gamma / tau
+            )
+
     elif backend == "casadi":
-        yp_field[~yp_field_is_nonzero] = 1
+        try:
+            yp_field[~yp_field_is_nonzero] = 1  # TODO fix for single point on yp_field is 0
+        except:
+            pass
         v_term_2 = cas.if_else(
             yp_field_is_nonzero,
             u_term_1_quantity * (
-                    xp_panel_end / yp_field +
+                    xp_panel_end / yp_field -
                     d_theta
             ),
             d_gamma / tau
@@ -148,7 +166,7 @@ def calculate_induced_velocity_panel_coordinates(
     return u, v
 
 
-def calculate_induced_velocity(
+def calculate_induced_velocity_single_panel(
         x_field,
         y_field,
         x_panel_start,
@@ -195,7 +213,7 @@ def calculate_induced_velocity(
     yp_field = x_field_relative * yp_hat_x + y_field_relative * yp_hat_y  # dot product with the xp unit vector
 
     ### Do the vortex math
-    up, vp = calculate_induced_velocity_panel_coordinates(
+    up, vp = calculate_induced_velocity_single_panel_panel_coordinates(
         xp_field=xp_field,
         yp_field=yp_field,
         gamma_start=gamma_start,
@@ -212,9 +230,44 @@ def calculate_induced_velocity(
     return u, v
 
 
+def calculate_induced_velocity(
+        x_field,
+        y_field,
+        x_panel,
+        y_panel,
+        gamma,
+        backend="numpy",
+):
+    try:
+        N = len(x_panel)
+    except TypeError:
+        N = x_panel.shape[0]
+
+    for i in range(N - 1):
+        u, v = calculate_induced_velocity_single_panel(
+            x_field=x_field,
+            y_field=y_field,
+            x_panel_start=x_panel[i],
+            y_panel_start=y_panel[i],
+            x_panel_end=x_panel[i + 1],
+            y_panel_end=y_panel[i + 1],
+            gamma_start=gamma[i],
+            gamma_end=gamma[i + 1],
+            backend=backend
+        )
+        if i == 0:
+            u_field = u
+            v_field = v
+        else:
+            u_field += u
+            v_field += v
+
+    return u_field, v_field
+
+
 if __name__ == '__main__':
     X, Y = np.meshgrid(
-        np.linspace(-1, 2, 50),
+        np.linspace(-1, 1, 50),
         np.linspace(-1, 1, 50),
         indexing='ij',
     )
@@ -224,10 +277,9 @@ if __name__ == '__main__':
     U, V = calculate_induced_velocity(
         x_field=X,
         y_field=Y,
-        x_panel_start=0.5,
-        y_panel_start=0,
-        x_panel_end=1,
-        y_panel_end=1,
+        x_panel=[-0.5, 0.5, 0.5, -0.5],
+        y_panel=[-0.5, -0.5, 0.5, 0.5],
+        gamma=[1, 1, -1, 1]
     )
 
     import matplotlib.pyplot as plt
@@ -239,7 +291,7 @@ if __name__ == '__main__':
     plt.quiver(
         X, Y, U, V,
         (U ** 2 + V ** 2) ** 0.5,
-        scale=5
+        scale=10
     )
     plt.xlabel(r"$x$")
     plt.ylabel(r"$z$")
@@ -247,3 +299,11 @@ if __name__ == '__main__':
     plt.tight_layout()
     # plt.savefig("C:/Users/User/Downloads/temp.svg")
     plt.show()
+
+    calculate_induced_velocity(
+        x_field=-10,
+        y_field=0.1,
+        x_panel=[-0.5, 0.5, 0.5, -0.5],
+        y_panel=[-0.5, -0.5, 0.5, 0.5],
+        gamma=[1, 1, -1, 1]
+    )
