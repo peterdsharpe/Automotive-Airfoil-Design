@@ -111,10 +111,11 @@ def calculate_induced_velocity_panel_coordinates(
 
     yp_field_is_nonzero = yp_field != 0
     v_term_2 = np.empty_like(v_term_1)
-    v_term_2[yp_field_is_nonzero] = u_term_1_quantity * (
-            xp_panel_end / yp_field + (theta_2 - theta_1)
+    v_term_2[yp_field_is_nonzero] = u_term_1_quantity[yp_field_is_nonzero] * (
+            xp_panel_end / yp_field[yp_field_is_nonzero] +
+            d_theta[yp_field_is_nonzero]
     )
-    v_term_2[~yp_field_is_nonzero] = (gamma_end - gamma_start) / tau
+    v_term_2[~yp_field_is_nonzero] = d_gamma / tau
 
     v = v_term_1 + v_term_2
 
@@ -196,7 +197,7 @@ if __name__ == '__main__':
     U, V = calculate_induced_velocity(
         x_field=X,
         y_field=Y,
-        x_panel_start=1,
+        x_panel_start=0.5,
         y_panel_start=0,
         x_panel_end=1,
         y_panel_end=1,

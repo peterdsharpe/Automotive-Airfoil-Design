@@ -1,4 +1,5 @@
-from .linear_strength_vortex import *
+from linear_strength_vortex import *
+import pytest
 
 def test_calculate_induced_velocity_panel_coordinates():
     X, Y = np.meshgrid(
@@ -44,7 +45,7 @@ def test_calculate_induced_velocity():
     U, V = calculate_induced_velocity(
         x_field=X,
         y_field=Y,
-        x_panel_start=1,
+        x_panel_start=0.5,
         y_panel_start=0,
         x_panel_end=1,
         y_panel_end=1,
@@ -67,3 +68,6 @@ def test_calculate_induced_velocity():
     plt.tight_layout()
     # plt.savefig("C:/Users/User/Downloads/temp.svg")
     plt.show()
+
+if __name__ == '__main__':
+    pytest.main()
