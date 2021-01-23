@@ -1,4 +1,4 @@
-from linear_strength_vortex import *
+from linear_strength_line_singularities import *
 import pytest
 
 

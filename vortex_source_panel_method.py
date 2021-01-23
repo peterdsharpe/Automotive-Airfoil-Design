@@ -3,7 +3,7 @@ from aerosandbox.geometry.airfoil import *
 from aerosandbox import cas
 import numpy as np
 from numpy import pi
-from singularities.linear_strength_vortex_and_source import calculate_induced_velocity
+from singularities.linear_strength_line_singularities import calculate_induced_velocity
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -25,11 +25,12 @@ gamma = opti.variable(
     n_vars=N,
     init_guess=0
 )
-sigma = opti.variable(
-    n_vars=N,
-    init_guess=0,
-    freeze=True,
-)
+# sigma = opti.variable(
+#     n_vars=N,
+#     init_guess=0,
+#     freeze=True,
+# )
+sigma = np.zeros(N)
 
 ### Calculate the field points
 x_midpoints = (x_panel[1:] + x_panel[:-1]) / 2
@@ -52,8 +53,8 @@ def calculate_velocity(
     u_field_induced, v_field_induced = calculate_induced_velocity(
         x_field=x_field,
         y_field=y_field,
-        x_panel=x_panel,
-        y_panel=y_panel,
+        x_panels=x_panel,
+        y_panels=y_panel,
         gamma=gamma,
         sigma=sigma,
         backend=backend

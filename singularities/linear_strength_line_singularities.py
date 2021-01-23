@@ -7,8 +7,10 @@ from typing import Union
 def calculate_induced_velocity_single_panel_panel_coordinates(
         xp_field: Union[float, np.ndarray],
         yp_field: Union[float, np.ndarray],
-        gamma_start: float = 1.,
-        gamma_end: float = 1.,
+        gamma_start: float = 0.,
+        gamma_end: float = 0.,
+        sigma_start: float = 0.,
+        sigma_end: float = 0.,
         xp_panel_end: float = 1.,
         backend: str = "numpy",
 ) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
@@ -22,7 +24,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     In this flowfield, there is only one singularity element: A line vortex going from (0, 0) to (xp_panel_end, 0).
     The strength of this vortex varies linearly from:
         * gamma_start at (0, 0), to:
-        * gamma_end at (xp_panel_end, 0).
+        * gamma_end at (xp_panel_end, 0). # TODO update paragraph
 
     By convention here, positive gamma induces clockwise swirl in the flow field.
         
@@ -35,34 +37,51 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     NumPy is significantly faster, but CasADi is differentiable.
 
     Equations from the seminal textbook "Low Speed Aerodynamics" by Katz and Plotkin.
-    Equations 11.99 and 11.100.
+    Vortex equations are Eq. 11.99 and Eq. 11.100.
         * Note: there is an error in equation 11.100 in Katz and Plotkin, at least in the 2nd ed:
         The last term of equation 11.100, which is given as:
             (x_{j+1} - x_j) / z + (theta_{j+1} - theta_j)
         has a sign error and should instead be written as:
             (x_{j+1} - x_j) / z - (theta_{j+1} - theta_j)
+    Source equations are Eq. 11.89 and Eq. 11.90.
 
     """
+    ### Validate inputs
+    if not (backend == "numpy" or backend == "casadi"):
+        raise ValueError("Bad value of 'backend'!")
+
     ### Modify any incoming floats
     if isinstance(xp_field, (float, int)):
         xp_field = np.array([xp_field])
     if isinstance(yp_field, (float, int)):
         yp_field = np.array([yp_field])
 
-    ### Define functions according to the backend to be used, and validate backend argument
+    ### Define functions according to the backend to be used
     if backend == "numpy":
         arctan2 = lambda y, x: np.arctan2(y, x)
         ln = lambda x: np.log(x)
-        abs = lambda x: np.abs(x)
+        fabs = lambda x: np.abs(x)
     elif backend == "casadi":
         arctan2 = lambda y, x: cas.arctan2(y, x)
         ln = lambda x: cas.log(x)
-        abs = lambda x: np.fabs(x)
-    else:
-        raise ValueError("Bad value of 'backend'!")
+        fabs = lambda x: np.fabs(x)
+
+    ### Determine if you can skip either the vortex or source parts
+    if backend == "numpy":
+        skip_vortex_math = gamma_start == 0 and gamma_end == 0
+        skip_source_math = sigma_start == 0 and sigma_end == 0
+    elif backend == "casadi":
+        skip_vortex_math = not (
+                isinstance(gamma_start, cas.MX) or
+                isinstance(gamma_end, cas.MX)
+        ) and gamma_start == 0 and gamma_end == 0
+        skip_source_math = not (
+                isinstance(sigma_start, cas.MX) or
+                isinstance(sigma_end, cas.MX)
+        ) and sigma_start == 0 and sigma_end == 0
 
     ### Determine which points are effectively on the panel, necessitating different math:
-    is_on_panel = abs(yp_field) <= 1e-8
+    is_on_panel = fabs(yp_field) <= 1e-8
 
     ### Do some geometry calculation
     r_1 = (
@@ -75,107 +94,125 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
           ) ** 0.5
     theta_1 = arctan2(yp_field, xp_field)
     theta_2 = arctan2(yp_field, xp_field - xp_panel_end)
-
-    ##### Naive implementation in the following comment block, shown here for interpretability:
-    """
-    ### Calculate u
-    u_term_1 = (
-            yp_field
-            / (2 * pi)
-            * (gamma_end - gamma_start)
-            / xp_panel_end
-            * np.log(r_2 / r_1)
-    )
-    u_term_2 = (
-                       gamma_start * xp_panel_end + (gamma_end - gamma_start) * xp_field
-               ) / (
-                       2 * pi * xp_panel_end
-               ) * (theta_2 - theta_1)
-
-    u = u_term_1 + u_term_2
-
-    ### Calculate v
-    v_term_1 = (
-                       gamma_start * xp_panel_end + (gamma_end - gamma_start) * xp_field
-               ) / (
-                       2 * pi * xp_panel_end
-               ) * np.log(r_2 / r_1)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        v_term_2 = np.where(
-            yp_field != 0,
-            (
-                    yp_field
-                    / (2 * pi)
-                    * (gamma_end - gamma_start)
-                    / xp_panel_end
-            ) * (
-                    xp_panel_end / yp_field + (theta_2 - theta_1)
-            ),
-            (gamma_end - gamma_start) / (2 * pi)
-        )
-
-    v = v_term_1 + v_term_2
-    """
-
-    ##### Optimized equivalent implementation, for speed:
     ln_r_2_r_1 = ln(r_2 / r_1)
     d_theta = theta_2 - theta_1
-    d_gamma = gamma_end - gamma_start
     tau = 2 * pi
-    u_term_1_quantity = (yp_field
-                         / tau
-                         * d_gamma
-                         / xp_panel_end
-                         )
-    u_term_2_quantity = (
-                                gamma_start * xp_panel_end + d_gamma * xp_field
-                        ) / (
-                                tau * xp_panel_end
-                        )
 
-    ### Calculate u
-    u_term_1 = u_term_1_quantity * ln_r_2_r_1
-    u_term_2 = u_term_2_quantity * d_theta
-    u = u_term_1 + u_term_2
+    ### VORTEX MATH
+    if skip_vortex_math:
+        u_vortex = 0
+        v_vortex = 0
+    else:
+        d_gamma = gamma_end - gamma_start
+        u_vortex_term_1_quantity = (yp_field
+                                    / tau
+                                    * d_gamma
+                                    / xp_panel_end
+                                    )
+        u_vortex_term_2_quantity = (
+                                           gamma_start * xp_panel_end + d_gamma * xp_field
+                                   ) / (
+                                           tau * xp_panel_end
+                                   )
 
-    ### Correct the u-velocity if field point is on the panel
-    if backend == "numpy":
-        u[is_on_panel] = 0
-    elif backend == "casadi":
-        u = cas.if_else(
-            is_on_panel,
-            0,
-            u
-        )
+        # Calculate u_vortex
+        u_vortex_term_1 = u_vortex_term_1_quantity * ln_r_2_r_1
+        u_vortex_term_2 = u_vortex_term_2_quantity * d_theta
+        u_vortex = u_vortex_term_1 + u_vortex_term_2
 
-    ### Calculate v
-    v_term_1 = u_term_2_quantity * ln_r_2_r_1
+        # Correct the u-velocity if field point is on the panel
+        if backend == "numpy":
+            u_vortex[is_on_panel] = 0
+        elif backend == "casadi":
+            u_vortex = cas.if_else(
+                is_on_panel,
+                0,
+                u_vortex
+            )
 
-    if backend == "numpy":  # This is basically an optimized version of np.where
-        v_term_2 = np.empty_like(v_term_1)
-        v_term_2[~is_on_panel] = u_term_1_quantity[~is_on_panel] * (
-                xp_panel_end / yp_field[~is_on_panel] -
-                d_theta[~is_on_panel]
-        )
-        v_term_2[is_on_panel] = d_gamma / tau
-    elif backend == "casadi":
-        yp_field_regularized = cas.if_else(
-            is_on_panel,
-            1,
-            yp_field
-        )
-        v_term_2 = cas.if_else(
-            is_on_panel,
-            d_gamma / tau,
-            u_term_1_quantity * (
-                    xp_panel_end / yp_field_regularized -
-                    d_theta
-            ),
-        )
+        # Calculate v_vortex
+        v_vortex_term_1 = u_vortex_term_2_quantity * ln_r_2_r_1
 
-    v = v_term_1 + v_term_2
+        if backend == "numpy":  # This is basically an optimized version of np.where
+            v_vortex_term_2 = np.empty_like(v_vortex_term_1)
+            v_vortex_term_2[~is_on_panel] = u_vortex_term_1_quantity[~is_on_panel] * (
+                    xp_panel_end / yp_field[~is_on_panel] -
+                    d_theta[~is_on_panel]
+            )
+            v_vortex_term_2[is_on_panel] = d_gamma / tau
+        elif backend == "casadi":
+            yp_field_regularized = cas.if_else(
+                is_on_panel,
+                1,
+                yp_field
+            )
+            v_vortex_term_2 = cas.if_else(
+                is_on_panel,
+                d_gamma / tau,
+                u_vortex_term_1_quantity * (
+                        xp_panel_end / yp_field_regularized -
+                        d_theta
+                ),
+            )
+
+        v_vortex = v_vortex_term_1 + v_vortex_term_2
+
+    ### SOURCE MATH
+    if skip_source_math:
+        u_source = 0
+        v_source = 0
+    else:
+        d_sigma = sigma_end - sigma_start
+        v_source_term_1_quantity = (yp_field
+                                    / tau
+                                    * d_sigma
+                                    / xp_panel_end
+                                    )
+        v_source_term_2_quantity = (
+                                           sigma_start * xp_panel_end + d_sigma * xp_field
+                                   ) / (
+                                           tau * xp_panel_end
+                                   )
+        # Calculate v_source
+        v_source_term_1 = -v_source_term_1_quantity * ln_r_2_r_1
+        v_source_term_2 = v_source_term_2_quantity * d_theta
+        v_source = v_source_term_1 + v_source_term_2
+
+        # Correct the v-velocity if field point is on the panel
+        if backend == "numpy":
+            v_source[is_on_panel] = 0
+        elif backend == "casadi":
+            v_source = cas.if_else(
+                is_on_panel,
+                0,
+                v_source
+            )
+
+        # Calculate u_source
+        u_source_term_1 = -v_source_term_2_quantity * ln_r_2_r_1
+
+        if backend == "numpy":  # This is basically an optimized version of np.where
+            u_source_term_2 = np.empty_like(u_source_term_1)
+            u_source_term_2[~is_on_panel] = -v_source_term_1_quantity[~is_on_panel] * (
+                    xp_panel_end / yp_field[~is_on_panel] -
+                    d_theta[~is_on_panel]
+            )
+            u_source_term_2[is_on_panel] = -d_sigma / tau
+        elif backend == "casadi":
+            u_source_term_2 = cas.if_else(
+                is_on_panel,
+                -d_sigma / tau,
+                -v_source_term_1_quantity * (
+                        xp_panel_end / yp_field_regularized -
+                        d_theta
+                ),
+            )
+
+        u_source = u_source_term_1 + u_source_term_2
 
     ### Return
+    u = u_vortex + u_source
+    v = v_vortex + v_source
     return u, v
 
 
@@ -186,14 +223,16 @@ def calculate_induced_velocity_single_panel(
         y_panel_start: float,
         x_panel_end: float,
         y_panel_end: float,
-        gamma_start: float = 1.,
-        gamma_end: float = 1.,
+        gamma_start: float = 0.,
+        gamma_end: float = 0.,
+        sigma_start: float = 0.,
+        sigma_end: float = 0.,
         backend: str = "numpy"
 ) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
-    In this flowfield, there is only one singularity element:
+    In this flowfield, there is only one singularity element: # TODO update paragraph
     A line vortex going from (x_panel_start, y_panel_start) to (x_panel_end, y_panel_end).
     The strength of this vortex varies linearly from:
         * gamma_start at (x_panel_start, y_panel_start), to:
@@ -234,6 +273,8 @@ def calculate_induced_velocity_single_panel(
         yp_field=yp_field,
         gamma_start=gamma_start,
         gamma_end=gamma_end,
+        sigma_start=sigma_start,
+        sigma_end=sigma_end,
         xp_panel_end=panel_length,
         backend=backend
     )
@@ -249,15 +290,16 @@ def calculate_induced_velocity_single_panel(
 def calculate_induced_velocity(
         x_field: Union[float, np.ndarray],
         y_field: Union[float, np.ndarray],
-        x_panel: np.ndarray,
-        y_panel: np.ndarray,
+        x_panels: np.ndarray,
+        y_panels: np.ndarray,
         gamma: np.ndarray,
+        sigma: np.ndarray,
         backend: str = "numpy",
 ) -> [Union[float, np.ndarray], Union[float, np.ndarray]]:
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
-    In this flowfield, the following singularity elements are assumed:
+    In this flowfield, the following singularity elements are assumed: # TODO update paragraph
         A line vortex that passes through the coordinates specified in (x_panel, y_panel). Each of these vertices is
         called a "node".
         The vorticity of this line vortex per unit length varies linearly between subsequent nodes.
@@ -275,20 +317,22 @@ def calculate_induced_velocity(
 
     """
     try:
-        N = len(x_panel)
+        N = len(x_panels)
     except TypeError:
-        N = x_panel.shape[0]
+        N = x_panels.shape[0]
 
     for i in range(N - 1):
         u, v = calculate_induced_velocity_single_panel(
             x_field=x_field,
             y_field=y_field,
-            x_panel_start=x_panel[i],
-            y_panel_start=y_panel[i],
-            x_panel_end=x_panel[i + 1],
-            y_panel_end=y_panel[i + 1],
+            x_panel_start=x_panels[i],
+            y_panel_start=y_panels[i],
+            x_panel_end=x_panels[i + 1],
+            y_panel_end=y_panels[i + 1],
             gamma_start=gamma[i],
             gamma_end=gamma[i + 1],
+            sigma_start=sigma[i],
+            sigma_end=sigma[i + 1],
             backend=backend
         )
         if i == 0:
@@ -313,9 +357,10 @@ if __name__ == '__main__':
     U, V = calculate_induced_velocity(
         x_field=X,
         y_field=Y,
-        x_panel=[-0.5, 0.5, 0.5, -0.5],
-        y_panel=[-0.5, -0.5, 0.5, 0.5],
-        gamma=[1, 1, -1, 1]
+        x_panels=[-0.5, 0.5, 0.5, -0.5, -0.5],
+        y_panels=[-0.5, -0.5, 0.5, 0.5, -0.5],
+        gamma=[0, 0, 0, 0, 0],
+        sigma=[1, 1, 1, 1, 1]
     )
 
     import matplotlib.pyplot as plt
