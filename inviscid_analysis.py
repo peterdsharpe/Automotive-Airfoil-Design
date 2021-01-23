@@ -11,7 +11,6 @@ sns.set(palette=sns.color_palette("husl"))
 ### Set up givens
 
 airfoil = asb.Airfoil("naca4408").repanel(n_points_per_side=50)
-alpha_deg = 5
 
 ### Get some basic information about the airfoil
 x_panels = airfoil.x()
@@ -22,22 +21,20 @@ N_w = round(N / 8 + 2)  # number of wake nodes
 
 ### Set up optimization/analysis framework and unknowns
 opti = asb.Opti()
+alpha_deg = opti.variable(
+    init_guess=5,
+)
 gamma = opti.variable(
     n_vars=N,
     init_guess=0
 )
 sigma = np.zeros(N)
 
-### Compute freestream velocity components
-alpha_rad = alpha_deg * pi / 180
-u_freestream = cas.cos(alpha_rad)
-v_freestream = cas.sin(alpha_rad)
-
-
 ### Make a function to calculate the local velocity at arbitrary points
 def calculate_velocity(
         x_field,
         y_field,
+        alpha_deg,
         gamma,
         sigma,
         backend="numpy"
@@ -51,6 +48,9 @@ def calculate_velocity(
         sigma=sigma,
         backend=backend
     )
+
+    u_freestream = cas.cos(alpha_deg * pi / 180)
+    v_freestream = cas.sin(alpha_deg * pi / 180)
 
     # u_field_induced_mirror, v_field_induced_mirror = calculate_induced_velocity(
     #     x_field=x_field,
@@ -77,6 +77,7 @@ y_midpoints = (y_panels[1:] + y_panels[:-1]) / 2
 u_midpoints, v_midpoints = calculate_velocity(
     x_field=x_midpoints,
     y_field=y_midpoints,
+    alpha_deg=alpha_deg,
     gamma=gamma,
     sigma=sigma,
     backend="casadi"
@@ -100,17 +101,24 @@ opti.subject_to(normal_velocities == 0)
 ### Add in Kutta condition
 opti.subject_to(gamma[0] + gamma[-1] == 0)
 
-### Solve
-sol = opti.solve()
-gamma = sol.value(gamma)
-sigma = sol.value(sigma)
-
 ### Calculate lift coefficient
-total_vorticity = np.sum(
+total_vorticity = cas.sum1(
     (gamma[1:] + gamma[:-1]) / 2 *
     panel_length
 )
 Cl = 2 * total_vorticity
+
+### Constrain lift
+opti.subject_to(Cl == 1)
+
+### Solve
+sol = opti.solve()
+alpha_deg = sol.value(alpha_deg)
+gamma = sol.value(gamma)
+sigma = sol.value(sigma)
+Cl = sol.value(Cl)
+
+### Print values
 print(f"Cl: {Cl}")
 
 ### Plot the flowfield
@@ -131,6 +139,7 @@ Y = Y.flatten()
 U, V = calculate_velocity(
     x_field=X,
     y_field=Y,
+    alpha_deg=alpha_deg,
     gamma=gamma,
     sigma=sigma,
 )
