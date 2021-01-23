@@ -46,26 +46,34 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     Source equations are Eq. 11.89 and Eq. 11.90.
 
     """
+    ### Validate inputs
+    if not (backend == "numpy" or backend == "casadi"):
+        raise ValueError("Bad value of 'backend'!")
+
     ### Modify any incoming floats
     if isinstance(xp_field, (float, int)):
         xp_field = np.array([xp_field])
     if isinstance(yp_field, (float, int)):
         yp_field = np.array([yp_field])
 
-    ### Define functions according to the backend to be used, and validate backend argument
+    ### Define functions according to the backend to be used
     if backend == "numpy":
         arctan2 = lambda y, x: np.arctan2(y, x)
         ln = lambda x: np.log(x)
-        abs = lambda x: np.abs(x)
+        fabs = lambda x: np.abs(x)
     elif backend == "casadi":
         arctan2 = lambda y, x: cas.arctan2(y, x)
         ln = lambda x: cas.log(x)
-        abs = lambda x: np.fabs(x)
-    else:
-        raise ValueError("Bad value of 'backend'!")
+        fabs = lambda x: np.fabs(x)
+
+    ### Determine if the problem is parametric, allowing you to potentially skip either the vortex or source parts
+    if backend == "numpy":
+        is_parametric = True
+    elif backend == "casadi":
+        is_parametric = False # TODO figure out if the arguments passed in are all parametric
 
     ### Determine which points are effectively on the panel, necessitating different math:
-    is_on_panel = abs(yp_field) <= 1e-8
+    is_on_panel = fabs(yp_field) <= 1e-8
 
     ### Do some geometry calculation
     r_1 = (
@@ -78,113 +86,121 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
           ) ** 0.5
     theta_1 = arctan2(yp_field, xp_field)
     theta_2 = arctan2(yp_field, xp_field - xp_panel_end)
-
-    ### Calculate the induced velocity of the vortex
     ln_r_2_r_1 = ln(r_2 / r_1)
     d_theta = theta_2 - theta_1
-    d_gamma = gamma_end - gamma_start
     tau = 2 * pi
-    u_vortex_term_1_quantity = (yp_field
-                                / tau
-                                * d_gamma
-                                / xp_panel_end
-                                )
-    u_vortex_term_2_quantity = (
-                                       gamma_start * xp_panel_end + d_gamma * xp_field
-                               ) / (
-                                       tau * xp_panel_end
-                               )
 
-    # Calculate u_vortex
-    u_vortex_term_1 = u_vortex_term_1_quantity * ln_r_2_r_1
-    u_vortex_term_2 = u_vortex_term_2_quantity * d_theta
-    u_vortex = u_vortex_term_1 + u_vortex_term_2
+    ### VORTEX MATH
+    if is_parametric and gamma_start == 0 and gamma_end == 0:
+        u_vortex = 0
+        v_vortex = 0
+    else:
+        d_gamma = gamma_end - gamma_start
+        u_vortex_term_1_quantity = (yp_field
+                                    / tau
+                                    * d_gamma
+                                    / xp_panel_end
+                                    )
+        u_vortex_term_2_quantity = (
+                                           gamma_start * xp_panel_end + d_gamma * xp_field
+                                   ) / (
+                                           tau * xp_panel_end
+                                   )
 
-    # Correct the u-velocity if field point is on the panel
-    if backend == "numpy":
-        u_vortex[is_on_panel] = 0
-    elif backend == "casadi":
-        u_vortex = cas.if_else(
-            is_on_panel,
-            0,
-            u_vortex
-        )
+        # Calculate u_vortex
+        u_vortex_term_1 = u_vortex_term_1_quantity * ln_r_2_r_1
+        u_vortex_term_2 = u_vortex_term_2_quantity * d_theta
+        u_vortex = u_vortex_term_1 + u_vortex_term_2
 
-    # Calculate v_vortex
-    v_vortex_term_1 = u_vortex_term_2_quantity * ln_r_2_r_1
+        # Correct the u-velocity if field point is on the panel
+        if backend == "numpy":
+            u_vortex[is_on_panel] = 0
+        elif backend == "casadi":
+            u_vortex = cas.if_else(
+                is_on_panel,
+                0,
+                u_vortex
+            )
 
-    if backend == "numpy":  # This is basically an optimized version of np.where
-        v_vortex_term_2 = np.empty_like(v_vortex_term_1)
-        v_vortex_term_2[~is_on_panel] = u_vortex_term_1_quantity[~is_on_panel] * (
-                xp_panel_end / yp_field[~is_on_panel] -
-                d_theta[~is_on_panel]
-        )
-        v_vortex_term_2[is_on_panel] = d_gamma / tau
-    elif backend == "casadi":
-        yp_field_regularized = cas.if_else(
-            is_on_panel,
-            1,
-            yp_field
-        )
-        v_vortex_term_2 = cas.if_else(
-            is_on_panel,
-            d_gamma / tau,
-            u_vortex_term_1_quantity * (
-                    xp_panel_end / yp_field_regularized -
-                    d_theta
-            ),
-        )
+        # Calculate v_vortex
+        v_vortex_term_1 = u_vortex_term_2_quantity * ln_r_2_r_1
 
-    v_vortex = v_vortex_term_1 + v_vortex_term_2
+        if backend == "numpy":  # This is basically an optimized version of np.where
+            v_vortex_term_2 = np.empty_like(v_vortex_term_1)
+            v_vortex_term_2[~is_on_panel] = u_vortex_term_1_quantity[~is_on_panel] * (
+                    xp_panel_end / yp_field[~is_on_panel] -
+                    d_theta[~is_on_panel]
+            )
+            v_vortex_term_2[is_on_panel] = d_gamma / tau
+        elif backend == "casadi":
+            yp_field_regularized = cas.if_else(
+                is_on_panel,
+                1,
+                yp_field
+            )
+            v_vortex_term_2 = cas.if_else(
+                is_on_panel,
+                d_gamma / tau,
+                u_vortex_term_1_quantity * (
+                        xp_panel_end / yp_field_regularized -
+                        d_theta
+                ),
+            )
 
-    ### Calculate the induced velocity of the source
-    d_sigma = sigma_end - sigma_start
-    v_source_term_1_quantity = (yp_field
-                                / tau
-                                * d_sigma
-                                / xp_panel_end
-                                )
-    v_source_term_2_quantity = (
-                                       sigma_start * xp_panel_end + d_sigma * xp_field
-                               ) / (
-                                       tau * xp_panel_end
-                               )
-    # Calculate v_source
-    v_source_term_1 = -v_source_term_1_quantity * ln_r_2_r_1
-    v_source_term_2 = v_source_term_2_quantity * d_theta
-    v_source = v_source_term_1 + v_source_term_2
+        v_vortex = v_vortex_term_1 + v_vortex_term_2
 
-    # Correct the v-velocity if field point is on the panel
-    if backend == "numpy":
-        v_source[is_on_panel] = 0
-    elif backend == "casadi":
-        v_source = cas.if_else(
-            is_on_panel,
-            0,
-            v_source
-        )
+    ### SOURCE MATH
+    if is_parametric and sigma_start == 0 and sigma_end == 0:
+        u_source = 0
+        v_source = 0
+    else:
+        d_sigma = sigma_end - sigma_start
+        v_source_term_1_quantity = (yp_field
+                                    / tau
+                                    * d_sigma
+                                    / xp_panel_end
+                                    )
+        v_source_term_2_quantity = (
+                                           sigma_start * xp_panel_end + d_sigma * xp_field
+                                   ) / (
+                                           tau * xp_panel_end
+                                   )
+        # Calculate v_source
+        v_source_term_1 = -v_source_term_1_quantity * ln_r_2_r_1
+        v_source_term_2 = v_source_term_2_quantity * d_theta
+        v_source = v_source_term_1 + v_source_term_2
 
-    # Calculate u_source
-    u_source_term_1 = -v_source_term_2_quantity * ln_r_2_r_1
+        # Correct the v-velocity if field point is on the panel
+        if backend == "numpy":
+            v_source[is_on_panel] = 0
+        elif backend == "casadi":
+            v_source = cas.if_else(
+                is_on_panel,
+                0,
+                v_source
+            )
 
-    if backend == "numpy":  # This is basically an optimized version of np.where
-        u_source_term_2 = np.empty_like(u_source_term_1)
-        u_source_term_2[~is_on_panel] = -v_source_term_1_quantity[~is_on_panel] * (
-                xp_panel_end / yp_field[~is_on_panel] -
-                d_theta[~is_on_panel]
-        )
-        v_vortex_term_2[is_on_panel] = -d_sigma / tau
-    elif backend == "casadi":
-        u_source_term_2 = cas.if_else(
-            is_on_panel,
-            -d_sigma / tau,
-            -v_source_term_1_quantity * (
-                    xp_panel_end / yp_field_regularized -
-                    d_theta
-            ),
-        )
+        # Calculate u_source
+        u_source_term_1 = -v_source_term_2_quantity * ln_r_2_r_1
 
-    u_source = u_source_term_1 + u_source_term_2
+        if backend == "numpy":  # This is basically an optimized version of np.where
+            u_source_term_2 = np.empty_like(u_source_term_1)
+            u_source_term_2[~is_on_panel] = -v_source_term_1_quantity[~is_on_panel] * (
+                    xp_panel_end / yp_field[~is_on_panel] -
+                    d_theta[~is_on_panel]
+            )
+            u_source_term_2[is_on_panel] = -d_sigma / tau
+        elif backend == "casadi":
+            u_source_term_2 = cas.if_else(
+                is_on_panel,
+                -d_sigma / tau,
+                -v_source_term_1_quantity * (
+                        xp_panel_end / yp_field_regularized -
+                        d_theta
+                ),
+            )
+
+        u_source = u_source_term_1 + u_source_term_2
 
     ### Return
     u = u_vortex + u_source
