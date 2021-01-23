@@ -232,7 +232,7 @@ def calculate_induced_velocity_single_panel(
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
-    In this flowfield, there is only one singularity element:
+    In this flowfield, there is only one singularity element: # TODO update paragraph
     A line vortex going from (x_panel_start, y_panel_start) to (x_panel_end, y_panel_end).
     The strength of this vortex varies linearly from:
         * gamma_start at (x_panel_start, y_panel_start), to:
@@ -299,7 +299,7 @@ def calculate_induced_velocity(
     """
     Calculates the induced velocity at a point (x_field, y_field) in a 2D potential-flow flowfield.
 
-    In this flowfield, the following singularity elements are assumed:
+    In this flowfield, the following singularity elements are assumed: # TODO update paragraph
         A line vortex that passes through the coordinates specified in (x_panel, y_panel). Each of these vertices is
         called a "node".
         The vorticity of this line vortex per unit length varies linearly between subsequent nodes.
