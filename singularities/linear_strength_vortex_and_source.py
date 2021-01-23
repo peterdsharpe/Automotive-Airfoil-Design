@@ -66,11 +66,19 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
         ln = lambda x: cas.log(x)
         fabs = lambda x: np.fabs(x)
 
-    ### Determine if the problem is parametric, allowing you to potentially skip either the vortex or source parts
+    ### Determine if you can skip either the vortex or source parts
     if backend == "numpy":
-        is_parametric = True
+        skip_vortex_math = gamma_start == 0 and gamma_end == 0
+        skip_source_math = sigma_start == 0 and sigma_end == 0
     elif backend == "casadi":
-        is_parametric = False # TODO figure out if the arguments passed in are all parametric
+        skip_vortex_math = not (
+                isinstance(gamma_start, cas.MX) or
+                isinstance(gamma_end, cas.MX)
+        ) and gamma_start == 0 and gamma_end == 0
+        skip_source_math = not (
+                isinstance(sigma_start, cas.MX) or
+                isinstance(sigma_end, cas.MX)
+        ) and sigma_start == 0 and sigma_end == 0
 
     ### Determine which points are effectively on the panel, necessitating different math:
     is_on_panel = fabs(yp_field) <= 1e-8
@@ -91,7 +99,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
     tau = 2 * pi
 
     ### VORTEX MATH
-    if is_parametric and gamma_start == 0 and gamma_end == 0:
+    if skip_vortex_math:
         u_vortex = 0
         v_vortex = 0
     else:
@@ -150,7 +158,7 @@ def calculate_induced_velocity_single_panel_panel_coordinates(
         v_vortex = v_vortex_term_1 + v_vortex_term_2
 
     ### SOURCE MATH
-    if is_parametric and sigma_start == 0 and sigma_end == 0:
+    if skip_source_math:
         u_source = 0
         v_source = 0
     else:
