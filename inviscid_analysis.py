@@ -1,9 +1,8 @@
-from aerosandbox.optimization import Opti
-from aerosandbox.geometry.airfoil import *
+import aerosandbox as asb
 from aerosandbox import cas
 import numpy as np
 from numpy import pi
-from singularities.linear_strength_line_singularities import calculate_induced_velocity_line_singularities
+from singularities import calculate_induced_velocity_line_singularities
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -11,7 +10,7 @@ sns.set(palette=sns.color_palette("husl"))
 
 ### Set up givens
 
-airfoil = Airfoil("naca4408").repanel(n_points_per_side=50)
+airfoil = asb.Airfoil("naca4408").repanel(n_points_per_side=50)
 alpha_deg = 5
 
 ### Get some basic information about the airfoil
@@ -22,7 +21,7 @@ N = len(x_panels)  # number of airfoil nodes
 N_w = round(N / 8 + 2)  # number of wake nodes
 
 ### Set up optimization/analysis framework and unknowns
-opti = Opti()
+opti = asb.Opti()
 gamma = opti.variable(
     n_vars=N,
     init_guess=0

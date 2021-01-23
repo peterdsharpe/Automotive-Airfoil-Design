@@ -4,7 +4,7 @@ from aerosandbox import cas
 from typing import Union
 
 
-def _calculate_induced_velocity_line_singularities_single_panel_panel_coordinates(
+def _calculate_induced_velocity_line_singularity_panel_coordinates(
         xp_field: Union[float, np.ndarray],
         yp_field: Union[float, np.ndarray],
         gamma_start: float = 0.,
@@ -216,7 +216,7 @@ def _calculate_induced_velocity_line_singularities_single_panel_panel_coordinate
     return u, v
 
 
-def _calculate_induced_velocity_line_singularities_single_panel(
+def _calculate_induced_velocity_line_singularity(
         x_field: Union[float, np.ndarray],
         y_field: Union[float, np.ndarray],
         x_panel_start: float,
@@ -268,7 +268,7 @@ def _calculate_induced_velocity_line_singularities_single_panel(
     yp_field = x_field_relative * yp_hat_x + y_field_relative * yp_hat_y  # dot product with the xp unit vector
 
     ### Do the vortex math
-    up, vp = _calculate_induced_velocity_line_singularities_single_panel_panel_coordinates(
+    up, vp = _calculate_induced_velocity_line_singularity_panel_coordinates(
         xp_field=xp_field,
         yp_field=yp_field,
         gamma_start=gamma_start,
@@ -322,7 +322,7 @@ def calculate_induced_velocity_line_singularities(
         N = x_panels.shape[0]
 
     for i in range(N - 1):
-        u, v = _calculate_induced_velocity_line_singularities_single_panel(
+        u, v = _calculate_induced_velocity_line_singularity(
             x_field=x_field,
             y_field=y_field,
             x_panel_start=x_panels[i],
