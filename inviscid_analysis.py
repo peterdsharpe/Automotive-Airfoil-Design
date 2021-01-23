@@ -118,86 +118,87 @@ gamma = sol.value(gamma)
 sigma = sol.value(sigma)
 Cl = sol.value(Cl)
 
-### Print values
-print(f"Cl: {Cl}")
+if __name__ == '__main__':
+    ### Print values
+    print(f"Cl: {Cl}")
 
-### Plot the flowfield
-fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=200)
+    ### Plot the flowfield
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=200)
 
-margin = 0.4
-res = 100
-x = np.linspace(-margin, 1 + margin, round(res * (1 + 2 * margin) / (2 * margin)))
-y = np.linspace(-margin, margin, res)
-X, Y = np.meshgrid(
-    x,
-    y,
-    # indexing='ij',
-)
-X = X.flatten()
-Y = Y.flatten()
+    margin = 0.4
+    res = 100
+    x = np.linspace(-margin, 1 + margin, round(res * (1 + 2 * margin) / (2 * margin)))
+    y = np.linspace(-margin, margin, res)
+    X, Y = np.meshgrid(
+        x,
+        y,
+        # indexing='ij',
+    )
+    X = X.flatten()
+    Y = Y.flatten()
 
-U, V = calculate_velocity(
-    x_field=X,
-    y_field=Y,
-    alpha_deg=alpha_deg,
-    gamma=gamma,
-    sigma=sigma,
-)
-speed = (U ** 2 + V ** 2) ** 0.5
-# plt.quiver(
-#     X, Y, U, V, speed,
-#     scale=30
-# )
+    U, V = calculate_velocity(
+        x_field=X,
+        y_field=Y,
+        alpha_deg=alpha_deg,
+        gamma=gamma,
+        sigma=sigma,
+    )
+    speed = (U ** 2 + V ** 2) ** 0.5
+    # plt.quiver(
+    #     X, Y, U, V, speed,
+    #     scale=30
+    # )
 
-from palettable.colorbrewer.diverging import RdBu_4 as streamplot_colormap
+    from palettable.colorbrewer.diverging import RdBu_4 as streamplot_colormap
 
-plt.streamplot(
-    x,
-    y,
-    U.reshape(len(y), len(x)),
-    V.reshape(len(y), len(x)),
-    color=speed.reshape(len(y), len(x)),
-    density=2,
-    arrowsize=0,
-    cmap=streamplot_colormap.mpl_colormap,
-)
+    plt.streamplot(
+        x,
+        y,
+        U.reshape(len(y), len(x)),
+        V.reshape(len(y), len(x)),
+        color=speed.reshape(len(y), len(x)),
+        density=2,
+        arrowsize=0,
+        cmap=streamplot_colormap.mpl_colormap,
+    )
 
-plt.fill(x_panels, y_panels, "k", linewidth=0, zorder=4)
-CB = plt.colorbar(
-    orientation="horizontal",
-    shrink=0.8,
-    aspect=40,
-)
-CB.set_label(r"$U/U_\infty$")
-plt.xlim(min(x), max(x))
-plt.ylim(min(y), max(y))
-plt.clim(0.7, 1.3)
-plt.gca().set_aspect('equal', adjustable='box')
-plt.xlabel(r"$x/c$")
-plt.ylabel(r"$y/c$")
-plt.title(rf"Flow Field around {airfoil.name} Airfoil")
-plt.annotate(
-    f"$\\alpha = {alpha_deg:.3f}\\degree$\n"
-    f"$C_l = {Cl: .3f}$",
-    (0.02, 0.97),
-    xycoords = 'axes fraction',
-    ha = "left",
-    va = "top",
-    backgroundcolor=(1,1,1,0.5)
+    plt.fill(x_panels, y_panels, "k", linewidth=0, zorder=4)
+    CB = plt.colorbar(
+        orientation="horizontal",
+        shrink=0.8,
+        aspect=40,
+    )
+    CB.set_label(r"$U/U_\infty$")
+    plt.xlim(min(x), max(x))
+    plt.ylim(min(y), max(y))
+    plt.clim(0.7, 1.3)
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.xlabel(r"$x/c$")
+    plt.ylabel(r"$y/c$")
+    plt.title(rf"Flow Field around {airfoil.name} Airfoil")
+    plt.annotate(
+        f"$\\alpha = {alpha_deg:.3f}\\degree$\n"
+        f"$C_l = {Cl: .3f}$",
+        (0.02, 0.97),
+        xycoords = 'axes fraction',
+        ha = "left",
+        va = "top",
+        backgroundcolor=(1,1,1,0.5)
 
-)
-plt.tight_layout()
-plt.show()
+    )
+    plt.tight_layout()
+    plt.show()
 
-### Plot C_p
-surface_speeds = (gamma[1:] + gamma[:-1]) / 2
-C_p = 1 - surface_speeds ** 2
+    ### Plot C_p
+    surface_speeds = (gamma[1:] + gamma[:-1]) / 2
+    C_p = 1 - surface_speeds ** 2
 
-fig, ax = plt.subplots(1, 1, figsize=(6.4, 4.8), dpi=200)
-plt.plot(x_midpoints, C_p)
-plt.gca().invert_yaxis()
-plt.xlabel(r"$x/c$")
-plt.ylabel(r"$C_p$")
-plt.title(r"$C_p$ on Surface")
-plt.tight_layout()
-plt.show()
+    fig, ax = plt.subplots(1, 1, figsize=(6.4, 4.8), dpi=200)
+    plt.plot(x_midpoints, C_p)
+    plt.gca().invert_yaxis()
+    plt.xlabel(r"$x/c$")
+    plt.ylabel(r"$C_p$")
+    plt.title(r"$C_p$ on Surface")
+    plt.tight_layout()
+    plt.show()
