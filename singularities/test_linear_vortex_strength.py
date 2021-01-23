@@ -11,7 +11,7 @@ def test_calculate_induced_velocity_panel_coordinates():
     X = X.flatten()
     Y = Y.flatten()
 
-    U, V = calculate_induced_velocity_single_panel_panel_coordinates(
+    U, V = _calculate_induced_velocity_single_panel_panel_coordinates(
         xp_field=X,
         yp_field=Y,
         backend="numpy"
@@ -45,7 +45,7 @@ def test_calculate_induced_velocity():
     X = X.flatten()
     Y = Y.flatten()
 
-    U, V = calculate_induced_velocity_single_panel(
+    U, V = _calculate_induced_velocity_single_panel(
         x_field=X,
         y_field=Y,
         x_panel_start=0.5,
@@ -83,7 +83,7 @@ def test_calculate_induced_velocity_panel_coordinates_casadi():
     X = X.flatten()
     Y = Y.flatten()
 
-    U, V = calculate_induced_velocity_single_panel_panel_coordinates(
+    U, V = _calculate_induced_velocity_single_panel_panel_coordinates(
         xp_field=X,
         yp_field=Y,
         backend="casadi"
@@ -117,7 +117,7 @@ def test_calculate_induced_velocity_casadi():
     X = X.flatten()
     Y = Y.flatten()
 
-    U, V = calculate_induced_velocity_single_panel(
+    U, V = _calculate_induced_velocity_single_panel(
         x_field=X,
         y_field=Y,
         x_panel_start=0.5,
