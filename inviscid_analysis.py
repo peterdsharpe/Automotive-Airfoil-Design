@@ -175,7 +175,17 @@ plt.clim(0.7, 1.3)
 plt.gca().set_aspect('equal', adjustable='box')
 plt.xlabel(r"$x/c$")
 plt.ylabel(r"$y/c$")
-plt.title(rf"Flow Field around {airfoil.name} Airfoil at $\alpha = {alpha_deg}\degree$")
+plt.title(rf"Flow Field around {airfoil.name} Airfoil")
+plt.annotate(
+    f"$\\alpha = {alpha_deg:.3f}\\degree$\n"
+    f"$C_l = {Cl: .3f}$",
+    (0.02, 0.97),
+    xycoords = 'axes fraction',
+    ha = "left",
+    va = "top",
+    backgroundcolor=(1,1,1,0.5)
+
+)
 plt.tight_layout()
 plt.show()
 
