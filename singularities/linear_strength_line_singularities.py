@@ -4,7 +4,7 @@ from aerosandbox import cas
 from typing import Union
 
 
-def _calculate_induced_velocity_single_panel_panel_coordinates(
+def _calculate_induced_velocity_line_singularities_single_panel_panel_coordinates(
         xp_field: Union[float, np.ndarray],
         yp_field: Union[float, np.ndarray],
         gamma_start: float = 0.,
@@ -216,7 +216,7 @@ def _calculate_induced_velocity_single_panel_panel_coordinates(
     return u, v
 
 
-def _calculate_induced_velocity_single_panel(
+def _calculate_induced_velocity_line_singularities_single_panel(
         x_field: Union[float, np.ndarray],
         y_field: Union[float, np.ndarray],
         x_panel_start: float,
@@ -268,7 +268,7 @@ def _calculate_induced_velocity_single_panel(
     yp_field = x_field_relative * yp_hat_x + y_field_relative * yp_hat_y  # dot product with the xp unit vector
 
     ### Do the vortex math
-    up, vp = _calculate_induced_velocity_single_panel_panel_coordinates(
+    up, vp = _calculate_induced_velocity_line_singularities_single_panel_panel_coordinates(
         xp_field=xp_field,
         yp_field=yp_field,
         gamma_start=gamma_start,
@@ -287,7 +287,7 @@ def _calculate_induced_velocity_single_panel(
     return u, v
 
 
-def calculate_induced_velocity(
+def calculate_induced_velocity_line_singularities(
         x_field: Union[float, np.ndarray],
         y_field: Union[float, np.ndarray],
         x_panels: np.ndarray,
@@ -322,7 +322,7 @@ def calculate_induced_velocity(
         N = x_panels.shape[0]
 
     for i in range(N - 1):
-        u, v = _calculate_induced_velocity_single_panel(
+        u, v = _calculate_induced_velocity_line_singularities_single_panel(
             x_field=x_field,
             y_field=y_field,
             x_panel_start=x_panels[i],
@@ -354,7 +354,7 @@ if __name__ == '__main__':
     X = X.flatten()
     Y = Y.flatten()
 
-    U, V = calculate_induced_velocity(
+    U, V = calculate_induced_velocity_line_singularities(
         x_field=X,
         y_field=Y,
         x_panels=np.array([-0.5, 0.5, 0.5, -0.5, -0.5]),

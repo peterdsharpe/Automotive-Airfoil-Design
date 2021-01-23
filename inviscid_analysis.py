@@ -3,7 +3,7 @@ from aerosandbox.geometry.airfoil import *
 from aerosandbox import cas
 import numpy as np
 from numpy import pi
-from singularities.linear_strength_line_singularities import calculate_induced_velocity
+from singularities.linear_strength_line_singularities import calculate_induced_velocity_line_singularities
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -43,7 +43,7 @@ def calculate_velocity(
         sigma,
         backend="numpy"
 ):
-    u_field_induced, v_field_induced = calculate_induced_velocity(
+    u_field_induced, v_field_induced = calculate_induced_velocity_line_singularities(
         x_field=x_field,
         y_field=y_field,
         x_panels=x_panels,

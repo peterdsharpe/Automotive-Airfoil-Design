@@ -1,7 +1,6 @@
 from linear_strength_line_singularities import *
 import pytest
 
-
 def test_calculate_induced_velocity_panel_coordinates():
     X, Y = np.meshgrid(
         np.linspace(-1, 2, 50),
