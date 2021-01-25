@@ -3,7 +3,7 @@ from aerosandbox.geometry.airfoil import *
 from aerosandbox import cas
 import numpy as np
 from numpy import pi
-from singularities.linear_strength_line_singularities import calculate_induced_velocity_line_singularities
+from aerodynamics.singularities.linear_strength_line_singularities import calculate_induced_velocity_line_singularities
 import matplotlib.pyplot as plt
 import seaborn as sns
 

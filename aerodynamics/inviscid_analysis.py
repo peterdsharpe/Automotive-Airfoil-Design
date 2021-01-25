@@ -2,7 +2,7 @@ import aerosandbox as asb
 from aerosandbox import cas
 import numpy as np
 from numpy import pi
-from singularities import calculate_induced_velocity_line_singularities
+from aerodynamics.singularities import calculate_induced_velocity_line_singularities
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -55,8 +55,8 @@ def calculate_velocity(
     # u_field_induced_mirror, v_field_induced_mirror = calculate_induced_velocity(
     #     x_field=x_field,
     #     y_field=-0.2 - y_field,
-    #     x_panels=x_panel,
-    #     y_panels=y_panel,
+    #     x_panels=x_panels,
+    #     y_panels=y_panels,
     #     gamma=-gamma,
     #     sigma=sigma,
     #     backend=backend
