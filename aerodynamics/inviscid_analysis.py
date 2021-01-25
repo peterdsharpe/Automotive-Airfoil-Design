@@ -30,6 +30,7 @@ gamma = opti.variable(
 )
 sigma = np.zeros(N)
 
+
 ### Make a function to calculate the local velocity at arbitrary points
 def calculate_velocity(
         x_field,
@@ -181,10 +182,10 @@ if __name__ == '__main__':
         f"$\\alpha = {alpha_deg:.3f}\\degree$\n"
         f"$C_l = {Cl: .3f}$",
         (0.02, 0.97),
-        xycoords = 'axes fraction',
-        ha = "left",
-        va = "top",
-        backgroundcolor=(1,1,1,0.5)
+        xycoords='axes fraction',
+        ha="left",
+        va="top",
+        backgroundcolor=(1, 1, 1, 0.5)
 
     )
     plt.tight_layout()
