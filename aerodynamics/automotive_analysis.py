@@ -2,12 +2,11 @@ import aerosandbox as asb
 from aerosandbox import cas, Airfoil
 import numpy as np
 from numpy import pi
-from aerodynamics.singularities import calculate_induced_velocity_line_singularities
+from aerosandbox.aerodynamics.aero_2D.singularities import *
 from aerosandbox.tools.casadi_functions import *
 import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import List, Union
-import copy
+from typing import List
+import matplotlib.patches as mpatches
 
 
 class AutomotiveAnalysis():
@@ -72,6 +71,8 @@ class AutomotiveAnalysis():
 
         self.calculate_velocity = calculate_velocity
 
+        total_vorticity = 0
+
         for airfoil in self.airfoils:
             ### Compute normal velocities at the middle of each panel
             x_midpoints = trapz(airfoil.x())
@@ -101,11 +102,11 @@ class AutomotiveAnalysis():
             ### Add in Kutta condition
             opti.subject_to(airfoil.gamma[0] + airfoil.gamma[-1] == 0)
 
-        ### Calculate lift
-        total_vorticity = cas.sum1(
-            (airfoil.gamma[1:] + airfoil.gamma[:-1]) / 2 *
-            panel_length
-        )
+            ### Sum up the total vorticity for when it's later needed
+            total_vorticity += cas.sum1(
+                (airfoil.gamma[1:] + airfoil.gamma[:-1]) / 2 *
+                panel_length
+            )
 
         ### Solve
         sol = opti.solve()
@@ -113,25 +114,83 @@ class AutomotiveAnalysis():
             airfoil.substitute_solution(sol)
         self.total_vorticity = sol.value(total_vorticity)
 
-    def visualize_matplotlib(self, res=100):
+    def visualize_matplotlib_streamlines(self):
         ### Plot the flowfield
-        fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=250)
+        x, y, X, Y, U, V, speed, Cp = self._visualize_matplotlib_figure()
 
+        from palettable.colorbrewer.diverging import RdBu_4 as colormap
+
+        plt.streamplot(
+            x,
+            y,
+            U,
+            V,
+            color=speed,
+            density=2.5,
+            arrowsize=0,
+            cmap=colormap.mpl_colormap,
+        )
+        CB = plt.colorbar(
+            orientation="horizontal",
+            shrink=0.8,
+            aspect=40,
+        )
+        CB.set_label(r"Relative Airspeed ($U/U_\infty$)")
+        plt.clim(0.4, 1.6)
+        self._visualize_matplotlib_show()
+
+    def visualize_matplotlib_Cp(self):
+        ### Plot the flowfield
+        x, y, X, Y, U, V, speed, Cp = self._visualize_matplotlib_figure()
+
+        from palettable.colorbrewer.diverging import RdBu_4_r as colormap
+
+        mask = ~np.isnan(U).flatten()
+        X = X.flatten()[mask]
+        Y = Y.flatten()[mask]
+        Cp = Cp.flatten()[mask]
+
+        plt.tricontourf(
+            X,
+            Y,
+            Cp,
+            cmap=colormap.mpl_colormap,
+            levels=np.linspace(-1, 1, 129),
+            extend='both',
+            # corner_mask = False
+        )
+        CB = plt.colorbar(
+            orientation="horizontal",
+            shrink=0.8,
+            aspect=51,
+        )
+        CB.set_label(r"Pressure Coefficient ($C_p$)")
+        # plt.clim(-1, 1)
+        self._visualize_matplotlib_show()
+
+    def _visualize_matplotlib_figure(self, res=100):
+        fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=250)
         margin = 0.5
-        xlim = (
+        xlim = np.array([
             -0.5,
             1.5
-        )
-        ylim = (
-            0,
+        ])
+        ylim = np.array([
+            -0.05,
             1
-        )
-        x = np.linspace(*xlim, round(res * (1 + 2 * margin) / (2 * margin)))
-        y = np.linspace(*ylim, res)
+        ])
+        plt.xlim(*xlim)
+        plt.ylim(*ylim)
+        xrng = diff(xlim)
+        yrng = diff(ylim)
+
+        x = np.linspace(*xlim, int(np.round(res * xrng / yrng)))
+        y = np.linspace(0, ylim[1], res)
         X, Y = np.meshgrid(
             x,
             y,
         )
+        shape = X.shape
         X = X.flatten()
         Y = Y.flatten()
 
@@ -139,36 +198,32 @@ class AutomotiveAnalysis():
             x_field=X,
             y_field=Y,
         )
+
+        X = X.reshape(shape)
+        Y = Y.reshape(shape)
+        U = U.reshape(shape)
+        V = V.reshape(shape)
+
+        contains = np.zeros_like(X, dtype=bool)
+        for airfoil in self.airfoils:
+            contains = contains | airfoil.contains_points(X, Y)
+
+        U[contains] = np.NaN
+        V[contains] = np.NaN
+
         speed = (U ** 2 + V ** 2) ** 0.5
-        # plt.quiver(
-        #     X, Y, U, V, speed,
-        #     scale=30
-        # )
-
-        from palettable.colorbrewer.diverging import RdBu_4 as streamplot_colormap
-
-        plt.streamplot(
-            x,
-            y,
-            U.reshape(len(y), len(x)),
-            V.reshape(len(y), len(x)),
-            color=speed.reshape(len(y), len(x)),
-            density=2,
-            arrowsize=0,
-            cmap=streamplot_colormap.mpl_colormap,
-        )
+        Cp = 1 - speed ** 2
 
         for airfoil in self.airfoils:
             plt.fill(airfoil.x(), airfoil.y(), "k", linewidth=0, zorder=4)
-        CB = plt.colorbar(
-            orientation="horizontal",
-            shrink=0.8,
-            aspect=40,
-        )
-        CB.set_label(r"Relative Airspeed ($U/U_\infty$)")
-        plt.xlim(min(x), max(x))
-        plt.ylim(min(y), max(y))
-        plt.clim(0.4, 1.6)
+
+        ground_x = np.array([xlim[0], xlim[1], xlim[1], xlim[0]])
+        ground_y = np.array([0, 0, ylim[0], ylim[0]])
+        plt.fill(ground_x, ground_y, "k", linewidth=0, zorder=4)
+
+        return x, y, X, Y, U, V, speed, Cp
+
+    def _visualize_matplotlib_show(self):
         plt.gca().set_aspect('equal', adjustable='box')
         plt.xlabel(r"$x/c$")
         plt.ylabel(r"$y/c$")
@@ -202,4 +257,5 @@ if __name__ == '__main__':
         ]
     )
     a.analyze()
-    a.visualize_matplotlib()
+    a.visualize_matplotlib_streamlines()
+    a.visualize_matplotlib_Cp()
