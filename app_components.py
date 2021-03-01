@@ -34,8 +34,8 @@ operating_slider_components = [
         id="streamline_density_slider_input",
         min=0.1,
         max=5,
-        step=1e-6,
-        value=1
+        step=0.1,
+        value=1.5
     ),
 ]
 

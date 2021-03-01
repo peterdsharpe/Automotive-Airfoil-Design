@@ -225,7 +225,8 @@ def display_graph(analyze_timestamp, alpha, height, streamline_density, operatin
             lower_weights=np.array(kulfan_inputs[n_kulfan_inputs_per_side:]),
             upper_weights=np.array(kulfan_inputs[:n_kulfan_inputs_per_side]),
             TE_thickness=0,
-            enforce_continuous_LE_radius=False
+            enforce_continuous_LE_radius=False,
+            n_points_per_side=200
         )
     )
 
@@ -243,10 +244,18 @@ def display_graph(analyze_timestamp, alpha, height, streamline_density, operatin
         0,
         height + 0.5 * np.sind(alpha)
     )
-    fig = airfoil.draw(
-        backend='plotly',
-        show=False,
-        draw_mcl=False
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=airfoil.x(),
+            y=airfoil.y(),
+            mode="lines",
+            name="Airfoil",
+            fill="toself",
+            line=dict(
+                color="blue"
+            )
+        )
     )
 
     ### Default text output
