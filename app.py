@@ -62,6 +62,20 @@ app.layout = dbc.Container(
                     is_open=False
                 ),
                 html.Hr(),
+                dbc.Button(
+                    "Show Raw Coordinates (*.dat format)",
+                    id="coordinates_button"
+                ),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody(
+                            dcc.Markdown(id="coordinates_output")
+                        )
+                    ),
+                    id="coordinates_collapse",
+                    is_open=False
+                ),
+                html.Hr(),
                 dcc.Markdown("##### Commands"),
                 dbc.Button(
                     "Analyze",
@@ -114,6 +128,18 @@ def toggle_shape_collapse(n_clicks, is_open):
     return is_open
 
 
+### Callback to make coordinates menu expand
+@app.callback(
+    Output("coordinates_collapse", "is_open"),
+    [Input("coordinates_button", "n_clicks")],
+    [State("coordinates_collapse", "is_open")]
+)
+def toggle_shape_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+
 ### Callback to make operating sliders display proper values
 @app.callback(
     Output("alpha_slider_output", "children"),
@@ -129,6 +155,14 @@ def display_alpha_slider(drag_value):
 )
 def display_alpha_slider(drag_value):
     return f"Height: {drag_value}"
+
+
+@app.callback(
+    Output("streamline_density_slider_output", "children"),
+    [Input("streamline_density_slider_input", "drag_value")]
+)
+def display_streamline_density_slider(drag_value):
+    return f"Streamline Density: {drag_value}"
 
 
 ### The callback to make the kulfan sliders display proper values
@@ -163,10 +197,12 @@ display_graph_first_time = True
 @app.callback(
     Output("display", "figure"),
     Output("text_output", "children"),
+    Output("coordinates_output", "children"),
     [
         Input('analyze', 'n_clicks_timestamp'),
         Input('alpha_slider_input', "value"),
         Input("height_slider_input", "value"),
+        Input("streamline_density_slider_input", "value"),
         Input("operating_checklist", "value"),
     ] + [
         Input(f"kulfan_{side.lower()}_{i}_input", "value")
@@ -174,7 +210,7 @@ display_graph_first_time = True
         for i in range(n_kulfan_inputs_per_side)
     ]
 )
-def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan_inputs):
+def display_graph(analyze_timestamp, alpha, height, streamline_density, operating_checklist, *kulfan_inputs):
     ### Figure out if a button was pressed
     global last_analyze_timestamp
     analyze_button_pressed = analyze_timestamp != last_analyze_timestamp
@@ -186,12 +222,23 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
     ### Start constructing the figure
     airfoil = asb.Airfoil(
         coordinates=asb.get_kulfan_coordinates(
-            lower_weights=np.array(kulfan_inputs[:n_kulfan_inputs_per_side]),
-            upper_weights=np.array(kulfan_inputs[n_kulfan_inputs_per_side:]),
+            lower_weights=np.array(kulfan_inputs[n_kulfan_inputs_per_side:]),
+            upper_weights=np.array(kulfan_inputs[:n_kulfan_inputs_per_side]),
             TE_thickness=0,
             enforce_continuous_LE_radius=False
         )
     )
+    print(airfoil.coordinates)
+
+    ### Do coordinates output
+    coordinates_output = "\n".join(
+        ["```"] +
+        ["AeroSandbox Airfoil"] +
+        ["\t%f\t%f" % tuple(coordinate) for coordinate in airfoil.coordinates] +
+        ["```"]
+    )
+
+    ### Continue doing the airfoil things
     airfoil = airfoil.rotate(angle=-np.radians(alpha))
     airfoil = airfoil.translate(
         0,
@@ -203,6 +250,7 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
         draw_mcl=False
     )
 
+    ### Default text output
     text_output = 'Click "Analyze" to compute aerodynamics!'
 
     xrng = (-0.5, 1.5)
@@ -234,9 +282,9 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
         streamline_fig = ff.create_streamline(
             x, y, U, V,
             arrow_scale=1e-16,
-            density=1,
+            density=streamline_density,
             line=dict(
-                color="pink"
+                color="#ff82a3"
             ),
             name="Streamlines"
         )
@@ -268,7 +316,7 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
     fig.update_xaxes(range=xrng)
     fig.update_yaxes(range=yrng)
 
-    return fig, text_output
+    return fig, text_output, coordinates_output
 
 
 if __name__ == '__main__':

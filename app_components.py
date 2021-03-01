@@ -28,7 +28,15 @@ operating_slider_components = [
             }
         ],
         value=[]
-    )
+    ),
+    html.Div(id="streamline_density_slider_output"),
+    dcc.Slider(
+        id="streamline_density_slider_input",
+        min=0.1,
+        max=5,
+        step=1e-6,
+        value=1
+    ),
 ]
 
 ### Shape things
@@ -46,19 +54,19 @@ for side in sides:
         slider_init = None
 
         if side == "Upper":
-            slider_min = -0.2
-            slider_max = 0.6
+            slider_min = -0.3
+            slider_max = 0.7
             slider_init = 0.2
             if i == 0:
-                slider_min = 0
+                slider_min = 0.06
             if n_kulfan_inputs_per_side == 3:
                 slider_init = [0.254094, 0.47475, 0.023816][i]
         else:
-            slider_min = -0.6
-            slider_max = 0.2
+            slider_min = -0.7
+            slider_max = 0.3
             slider_init = -0.2
             if i == 0:
-                slider_max = 0
+                slider_max = -0.06
             if n_kulfan_inputs_per_side == 3:
                 slider_init = [-0.107972, 0.061474, -0.055904][i]
 
