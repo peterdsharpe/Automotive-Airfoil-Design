@@ -1,4 +1,4 @@
-aerosandbox # TODO fix a version
+aerosandbox == 3.0.0 # TODO fix a version
 plotly>= 4.14.3
 dash>= 1.19.0
 dash_core_components>=1.15.0

@@ -156,6 +156,7 @@ def make_table(dataframe):
 
 
 last_analyze_timestamp = None
+display_graph_first_time = True
 
 
 ### The callback to draw the airfoil on the graph
@@ -202,12 +203,15 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
         draw_mcl=False
     )
 
-    text_output = 'Click "Analyze" to compute aero. data!'
+    text_output = 'Click "Analyze" to compute aerodynamics!'
 
     xrng = (-0.5, 1.5)
     yrng = (-0.6, 0.6) if not ground_effect else (0, 1.2)
 
-    if analyze_button_pressed:
+    global display_graph_first_time
+    if analyze_button_pressed or display_graph_first_time:
+        display_graph_first_time = False
+
         analysis = asb.AirfoilInviscid(
             airfoil=airfoil.repanel(50),
             op_point=asb.OperatingPoint(
@@ -246,7 +250,7 @@ def display_graph(analyze_timestamp, alpha, height, operating_checklist, *kulfan
                 "Engineering Quantity": [
                     "C_L"
                 ],
-                "Value" : [
+                "Value"               : [
                     f"{analysis.Cl:.3f}"
                 ]
             }
