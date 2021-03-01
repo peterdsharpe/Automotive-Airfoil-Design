@@ -324,7 +324,7 @@ def display_graph(analyze_timestamp, alpha, height, streamline_density, operatin
     fig.update_xaxes(range=xrng)
     fig.update_yaxes(range=yrng)
 
-    return fig, text_output, coordinates_output
+    return fig, text_output, [coordinates_output]
 
 
 if __name__ == '__main__':
