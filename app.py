@@ -24,7 +24,7 @@ app.layout = dbc.Container(
                 dcc.Markdown("""
                 # Airfoil Analysis with [AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) and [Dash](https://plotly.com/dash/)
                 
-                By [Peter Sharpe](https://peterdsharpe.github.io/). Uses potential flow theory (viscous effects neglected). [Source code here](https://github.com/peterdsharpe/Automotive-Airfoil-Design).
+                By [Peter Sharpe](https://peterdsharpe.github.io/). Uses potential flow theory (viscous effects neglected, for now). [Source code here](https://github.com/peterdsharpe/Automotive-Airfoil-Design).
                 """)
             ], width=True),
             dbc.Col([
