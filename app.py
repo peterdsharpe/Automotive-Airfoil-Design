@@ -228,7 +228,6 @@ def display_graph(analyze_timestamp, alpha, height, streamline_density, operatin
             enforce_continuous_LE_radius=False
         )
     )
-    print(airfoil.coordinates)
 
     ### Do coordinates output
     coordinates_output = "\n".join(
