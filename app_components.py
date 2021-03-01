@@ -35,7 +35,7 @@ operating_slider_components = [
         min=0.1,
         max=5,
         step=0.1,
-        value=1.5
+        value=1
     ),
 ]
 
