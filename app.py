@@ -188,6 +188,7 @@ def make_table(dataframe):
 
 last_analyze_timestamp = None
 
+n_clicks_last = 0
 
 ### The callback to draw the airfoil on the graph
 @app.callback(
@@ -195,7 +196,7 @@ last_analyze_timestamp = None
     Output("text_output", "children"),
     Output("coordinates_output", "children"),
     [
-        Input('analyze', 'n_clicks_timestamp'),
+        Input('analyze', 'n_clicks'),
         Input('alpha_slider_input', "value"),
         Input("height_slider_input", "value"),
         Input("streamline_density_slider_input", "value"),
@@ -206,11 +207,14 @@ last_analyze_timestamp = None
         for i in range(n_kulfan_inputs_per_side)
     ]
 )
-def display_graph(analyze_timestamp, alpha, height, streamline_density, operating_checklist, *kulfan_inputs):
+def display_graph(n_clicks, alpha, height, streamline_density, operating_checklist, *kulfan_inputs):
     ### Figure out if a button was pressed
-    global last_analyze_timestamp
-    analyze_button_pressed = analyze_timestamp != last_analyze_timestamp
-    last_analyze_timestamp = analyze_timestamp
+    global n_clicks_last
+    if n_clicks is None:
+        n_clicks = 0
+
+    analyze_button_pressed = n_clicks > n_clicks_last
+    n_clicks_last = n_clicks
 
     ### Parse the checklist
     ground_effect = 'ground_effect' in operating_checklist
