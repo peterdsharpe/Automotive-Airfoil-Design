@@ -89,11 +89,8 @@ app.layout = dbc.Container(
 
             ], width=3),
             dbc.Col([
-                dcc.Loading(
-                    dcc.Graph(id='display', style={'height': '90vh'}),
-                    color="primary"
-                )
-            ], width=True, align="start")
+                dcc.Graph(id='display', style={'height': '90vh'}),
+            ], width=9, align="end")
         ]),
         html.Hr(),
         dcc.Markdown("""
@@ -190,7 +187,6 @@ def make_table(dataframe):
 
 
 last_analyze_timestamp = None
-display_graph_first_time = True
 
 
 ### The callback to draw the airfoil on the graph
@@ -264,9 +260,7 @@ def display_graph(analyze_timestamp, alpha, height, streamline_density, operatin
     xrng = (-0.5, 1.5)
     yrng = (-0.6, 0.6) if not ground_effect else (0, 1.2)
 
-    global display_graph_first_time
-    if analyze_button_pressed or display_graph_first_time:
-        display_graph_first_time = False
+    if analyze_button_pressed:
 
         analysis = asb.AirfoilInviscid(
             airfoil=airfoil.repanel(50),
