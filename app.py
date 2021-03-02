@@ -90,7 +90,7 @@ app.layout = dbc.Container(
             ], width=3),
             dbc.Col([
                 dcc.Graph(id='display', style={'height': '90vh'}),
-            ], width=9, align="end")
+            ], width=9, align="start")
         ]),
         html.Hr(),
         dcc.Markdown("""
