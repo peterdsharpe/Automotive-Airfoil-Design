@@ -14,7 +14,7 @@ import pandas as pd
 from app_components import *
 
 ### Build the app
-app = dash.Dash(external_stylesheets=[dbc.themes.MINTY], title="Aircraft Design with Dash")
+app = dash.Dash(external_stylesheets=[dbc.themes.MINTY], title="Airfoil Analysis")
 server = app.server
 
 app.layout = dbc.Container(
